@@ -1,0 +1,46 @@
+
+version: "3"
+services:
+    automation_broker:
+        image: technipenergies-soar.soar.splunkcloud.com/phantomsaas/automation_broker
+        # Podman does not support the auto-update feature.
+        # To deploy Automation Broker in Podman deployments use the image below and manually update the version on future SOAR releases.
+        # image: docker.io/phantomsaas/automation_broker:6.3.1
+        environment:
+            # The Base URL for SOAR
+            - PHANTOM_BASE_URL=https://technipenergies-soar.soar.splunkcloud.com
+            - PUID=1000
+            - PGID=1000
+            # Optional: Proxy Settings for AB
+            # - http_proxy=http://<proxy_ip>:<proxy_port>
+            # - https_proxy=https://<proxy_ip>:<proxy_port>
+
+        # /splunk_data directory needs to be mounted
+        # somewhere for persistent storage. If it's not specified, a default
+        # source folder will be created.
+        volumes:
+           - type: bind
+             source: ./splunk_data
+             target: /splunk_data
+             bind:
+               create_host_path: true
+
+        labels:
+            com.centurylinklabs.watchtower.enable: "true"
+            com.centurylinklabs.watchtower.lifecycle.pre-check: "/splunk/broker/bin/pre-check.sh"
+            com.centurylinklabs.watchtower.lifecycle.pre-update: "/splunk/broker/bin/pre-update.sh"
+            com.centurylinklabs.watchtower.lifecycle.post-update: "/splunk/broker/bin/post-update.sh"
+            com.centurylinklabs.watchtower.lifecycle.post-check: "/splunk/broker/bin/post-check.sh"
+
+    watchtower:
+        image: containrrr/watchtower
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+        environment:
+            - WATCHTOWER_LIFECYCLE_HOOKS=true
+            # This environment variable will force watchtower to only
+            # watch containers with com.centurylinklabs.watchtower.enable
+            # label set to true
+            - WATCHTOWER_LABEL_ENABLE=true
+        command: --interval 600
+
